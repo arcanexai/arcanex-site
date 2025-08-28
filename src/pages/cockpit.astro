@@ -6,34 +6,68 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- Decap reads this config from /public -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
   </head>
   <body>
-    <!-- Netlify Identity widget -->
-    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <!-- Load scripts in correct order with error handling -->
     <script>
-      if (window.netlifyIdentity) {
-        const hasInvite = (location.hash || '').includes('invite_token');
-        window.netlifyIdentity.on('init', (user) => {
-          if (hasInvite && !user) window.netlifyIdentity.open();
-        });
-        window.netlifyIdentity.on('login', () => location.reload());
-        window.netlifyIdentity.init(); // Don't forget to initialize!
-      }
-    </script>
+      // Load Netlify Identity
+      const identityScript = document.createElement('script');
+      identityScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+      identityScript.onload = function() {
+        console.log('Identity widget loaded');
+        initIdentity();
+      };
+      identityScript.onerror = function() {
+        console.error('Failed to load Netlify Identity widget');
+      };
+      document.head.appendChild(identityScript);
 
-    <!-- Decap CMS -->
-    <script src="https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js"></script>
-    <script>
-      // Initialize CMS
-      if (window.DecapCMS) {
-        window.DecapCMS.init();
-      } else if (window.CMS) {
-        window.CMS.init();
-      } else {
-        console.error('Decap CMS not loaded properly');
+      function initIdentity() {
+        if (window.netlifyIdentity) {
+          const hasInvite = (location.hash || '').includes('invite_token');
+          console.log('Has invite token:', hasInvite);
+          
+          window.netlifyIdentity.on('init', (user) => {
+            console.log('Identity initialized, user:', user);
+            if (hasInvite && !user) {
+              console.log('Opening identity widget for invite...');
+              window.netlifyIdentity.open();
+            }
+          });
+          
+          window.netlifyIdentity.on('login', (user) => {
+            console.log('User logged in:', user);
+            // Clean URL and reload
+            window.location.href = '/cockpit/';
+          });
+          
+          window.netlifyIdentity.init();
+        }
+      }
+
+      // Load Decap CMS
+      const cmsScript = document.createElement('script');
+      cmsScript.src = 'https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js';
+      cmsScript.onload = function() {
+        console.log('Decap CMS script loaded');
+        initCMS();
+      };
+      cmsScript.onerror = function() {
+        console.error('Failed to load Decap CMS');
+      };
+      document.head.appendChild(cmsScript);
+
+      function initCMS() {
+        // Try different global names for Decap CMS
+        const CMS = window.DecapCMS || window.DecapCmsApp || window.CMS;
+        if (CMS && typeof CMS.init === 'function') {
+          CMS.init();
+          console.log('Decap CMS initialized');
+        } else {
+          console.error('Decap CMS not found. Available globals:', Object.keys(window).filter(k => k.includes('CMS') || k.includes('Decap')));
+        }
       }
     </script>
   </body>
