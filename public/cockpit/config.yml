@@ -15,4 +15,6 @@ collections:
         name: "home"
         fields:
           - { label: "Title", name: "title", widget: "string" }
+          - { label: "Lead", name: "lead", widget: "text", required: false }
+          - { label: "Hero Image", name: "hero", widget: "image", required: false }
           - { label: "Body", name: "body", widget: "markdown" }
