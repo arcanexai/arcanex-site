@@ -1,0 +1,29 @@
+---
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <!-- Decap reads this config from /public -->
+    <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
+    <title>Arcanex Cockpit</title>
+  </head>
+  <body>
+    <!-- Netlify Identity widget -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <script>
+      if (window.netlifyIdentity) {
+        const hasInvite = (location.hash || '').includes('invite_token');
+        window.netlifyIdentity.on('init', (user) => {
+          if (hasInvite && !user) window.netlifyIdentity.open(); // complete invite if needed
+        });
+        window.netlifyIdentity.on('login', () => location.reload());
+      }
+    </script>
+
+    <!-- Decap CMS (CDN, pinned to 3.8.3) -->
+    <script src="https://unpkg.com/decap-cms@3.8.3/dist/decap-cms.js"></script>
+  </body>
+</html>
