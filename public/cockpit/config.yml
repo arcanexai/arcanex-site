@@ -2,7 +2,7 @@ backend:
   name: github
   repo: arcanexai/arcanex-site
   branch: main
-  base_url: /.netlify/functions
+  base_url: https://arcanex.ai/.netlify/functions
   auth_endpoint: auth
 
 media_folder: "public/uploads"
@@ -17,4 +17,4 @@ collections:
         name: "home"
         fields:
           - { label: "Title", name: "title", widget: "string" }
-          - { label: "Body",  name: "body",  widget: "markdown" }
+          - { label: "Body", name: "body", widget: "markdown" }
