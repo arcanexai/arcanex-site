@@ -8,67 +8,184 @@
     <meta name="robots" content="noindex" />
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
+    <style>
+      body { 
+        margin: 0; 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      }
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 9999;
+      }
+      .spinner {
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
-    <!-- Load scripts in correct order with error handling -->
+    <!-- Loading indicator -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>Loading Arcanex Cockpit...</p>
+      <p id="status" style="color: #666; font-size: 14px;">Initializing...</p>
+    </div>
+
     <script>
-      // Load Netlify Identity
-      const identityScript = document.createElement('script');
-      identityScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-      identityScript.onload = function() {
-        console.log('Identity widget loaded');
-        initIdentity();
-      };
-      identityScript.onerror = function() {
-        console.error('Failed to load Netlify Identity widget');
-      };
-      document.head.appendChild(identityScript);
+      const loading = document.getElementById('loading');
+      const status = document.getElementById('status');
+      
+      function updateStatus(message) {
+        status.textContent = message;
+        console.log('Status:', message);
+      }
 
-      function initIdentity() {
-        if (window.netlifyIdentity) {
-          const hasInvite = (location.hash || '').includes('invite_token');
-          console.log('Has invite token:', hasInvite);
+      // Check if user is already logged in
+      function checkAuthAndLoadCMS() {
+        updateStatus('Checking authentication...');
+        
+        // Load Netlify Identity first
+        const identityScript = document.createElement('script');
+        identityScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+        identityScript.onload = function() {
+          updateStatus('Identity widget loaded');
+          initializeIdentity();
+        };
+        identityScript.onerror = function() {
+          updateStatus('Error: Failed to load identity widget');
+        };
+        document.head.appendChild(identityScript);
+      }
+
+      function initializeIdentity() {
+        if (!window.netlifyIdentity) {
+          updateStatus('Error: Netlify Identity not available');
+          return;
+        }
+
+        const hasInviteToken = location.hash.includes('invite_token');
+        
+        window.netlifyIdentity.on('init', (user) => {
+          console.log('Identity initialized. User:', user);
           
-          window.netlifyIdentity.on('init', (user) => {
-            console.log('Identity initialized, user:', user);
-            if (hasInvite && !user) {
-              console.log('Opening identity widget for invite...');
-              window.netlifyIdentity.open();
-            }
-          });
+          if (hasInviteToken && !user) {
+            updateStatus('Processing invite...');
+            window.netlifyIdentity.open();
+            return;
+          }
           
-          window.netlifyIdentity.on('login', (user) => {
-            console.log('User logged in:', user);
-            // Clean URL and reload
-            window.location.href = '/cockpit/';
-          });
+          if (user) {
+            updateStatus('User authenticated, loading CMS...');
+            loadCMS();
+          } else {
+            updateStatus('Please log in');
+            window.netlifyIdentity.open();
+          }
+        });
+
+        window.netlifyIdentity.on('login', (user) => {
+          console.log('User logged in:', user);
+          updateStatus('Login successful, loading CMS...');
+          // Clean the URL and load CMS
+          if (location.hash) {
+            history.replaceState(null, null, location.pathname);
+          }
+          loadCMS();
+        });
+
+        window.netlifyIdentity.on('logout', () => {
+          location.reload();
+        });
+
+        window.netlifyIdentity.init();
+      }
+
+      function loadCMS() {
+        updateStatus('Loading Decap CMS...');
+        
+        const cmsScript = document.createElement('script');
+        cmsScript.src = 'https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js';
+        cmsScript.onload = function() {
+          updateStatus('CMS script loaded, initializing...');
+          setTimeout(initializeCMS, 100); // Small delay to ensure everything is ready
+        };
+        cmsScript.onerror = function() {
+          updateStatus('Error: Failed to load CMS script');
+        };
+        document.head.appendChild(cmsScript);
+      }
+
+      function initializeCMS() {
+        try {
+          // Try different possible global names
+          const CMS = window.DecapCMS || window.DecapCmsApp || window.CMS || window.NetlifyCMS;
           
-          window.netlifyIdentity.init();
+          if (CMS && typeof CMS.init === 'function') {
+            updateStatus('Initializing CMS interface...');
+            CMS.init();
+            
+            // Hide loading screen after a moment
+            setTimeout(() => {
+              loading.style.display = 'none';
+            }, 1000);
+            
+          } else {
+            console.error('Available globals:', Object.keys(window).filter(k => 
+              k.toLowerCase().includes('cms') || k.toLowerCase().includes('decap')
+            ));
+            updateStatus('Error: CMS not found after loading');
+            
+            // Fallback: try legacy Netlify CMS
+            setTimeout(loadLegacyCMS, 2000);
+          }
+        } catch (error) {
+          console.error('CMS initialization error:', error);
+          updateStatus('Error initializing CMS: ' + error.message);
         }
       }
 
-      // Load Decap CMS
-      const cmsScript = document.createElement('script');
-      cmsScript.src = 'https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js';
-      cmsScript.onload = function() {
-        console.log('Decap CMS script loaded');
-        initCMS();
-      };
-      cmsScript.onerror = function() {
-        console.error('Failed to load Decap CMS');
-      };
-      document.head.appendChild(cmsScript);
-
-      function initCMS() {
-        // Try different global names for Decap CMS
-        const CMS = window.DecapCMS || window.DecapCmsApp || window.CMS;
-        if (CMS && typeof CMS.init === 'function') {
-          CMS.init();
-          console.log('Decap CMS initialized');
-        } else {
-          console.error('Decap CMS not found. Available globals:', Object.keys(window).filter(k => k.includes('CMS') || k.includes('Decap')));
-        }
+      function loadLegacyCMS() {
+        updateStatus('Trying legacy Netlify CMS...');
+        
+        const legacyScript = document.createElement('script');
+        legacyScript.src = 'https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js';
+        legacyScript.onload = function() {
+          if (window.CMS) {
+            window.CMS.init();
+            setTimeout(() => {
+              loading.style.display = 'none';
+            }, 1000);
+          }
+        };
+        document.head.appendChild(legacyScript);
       }
+
+      // Start the process
+      checkAuthAndLoadCMS();
+
+      // Handle any JavaScript errors
+      window.addEventListener('error', function(e) {
+        console.error('JavaScript error:', e.error);
+        updateStatus('Error: ' + (e.message || 'Unknown error occurred'));
+      });
     </script>
   </body>
 </html>
