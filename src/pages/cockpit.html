@@ -4,11 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- Point Decap to your YAML config that lives in /public -->
+    <!-- Tell Decap where config is -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
   </head>
   <body>
+    <!-- 1) Netlify Identity widget -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <script>
+      // if user logs in via the widget, reload Cockpit
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.on('init', (user) => {
+          if (!user) {
+            window.netlifyIdentity.on('login', () => {
+              window.location.reload();
+            });
+          }
+        });
+      }
+    </script>
+
+    <!-- 2) Decap CMS app -->
     <script type="module">
       import CMS from "decap-cms-app";
       CMS.init();
