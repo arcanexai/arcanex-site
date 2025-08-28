@@ -17,13 +17,24 @@
       if (window.netlifyIdentity) {
         const hasInvite = (location.hash || '').includes('invite_token');
         window.netlifyIdentity.on('init', (user) => {
-          if (hasInvite && !user) window.netlifyIdentity.open(); // complete invite if needed
+          if (hasInvite && !user) window.netlifyIdentity.open();
         });
         window.netlifyIdentity.on('login', () => location.reload());
+        window.netlifyIdentity.init(); // Don't forget to initialize!
       }
     </script>
 
-    <!-- Decap CMS (CDN, pinned to 3.8.3) -->
-    <script src="https://unpkg.com/decap-cms@3.8.3/dist/decap-cms.js"></script>
+    <!-- Decap CMS -->
+    <script src="https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js"></script>
+    <script>
+      // Initialize CMS
+      if (window.DecapCMS) {
+        window.DecapCMS.init();
+      } else if (window.CMS) {
+        window.CMS.init();
+      } else {
+        console.error('Decap CMS not loaded properly');
+      }
+    </script>
   </body>
 </html>
