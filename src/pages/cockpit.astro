@@ -6,25 +6,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
+    <!-- Decap config (served from /public) -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
     <style>
-      body { 
-        margin: 0; 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
       #loading {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        inset: 0;
         background: white;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        z-index: 9999;
+        z-index: 1000; /* was 9999; keep below the Identity modal */
       }
       .spinner {
         border: 2px solid #f3f3f3;
@@ -36,156 +34,130 @@
         margin-bottom: 20px;
       }
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(360deg); }
       }
+      #status { color: #666; font-size: 14px; }
     </style>
   </head>
   <body>
-    <!-- Loading indicator -->
+    <!-- Fullscreen loading overlay -->
     <div id="loading">
       <div class="spinner"></div>
       <p>Loading Arcanex Cockpit...</p>
-      <p id="status" style="color: #666; font-size: 14px;">Initializing...</p>
+      <p id="status">Initializing...</p>
     </div>
 
     <script>
       const loading = document.getElementById('loading');
-      const status = document.getElementById('status');
-      
-      function updateStatus(message) {
-        status.textContent = message;
-        console.log('Status:', message);
-      }
+      const statusEl = document.getElementById('status');
+      const setStatus = (msg) => { statusEl.textContent = msg; console.log('[Cockpit]', msg); };
 
-      // Check if user is already logged in
-      function checkAuthAndLoadCMS() {
-        updateStatus('Checking authentication...');
-        
+      // Start sequence
+      (function boot() {
+        setStatus('Checking authentication...');
         // Load Netlify Identity first
-        const identityScript = document.createElement('script');
-        identityScript.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-        identityScript.onload = function() {
-          updateStatus('Identity widget loaded');
-          initializeIdentity();
-        };
-        identityScript.onerror = function() {
-          updateStatus('Error: Failed to load identity widget');
-        };
-        document.head.appendChild(identityScript);
-      }
+        const s = document.createElement('script');
+        s.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+        s.onload = initIdentity;
+        s.onerror = () => setStatus('Error: Failed to load Identity widget');
+        document.head.appendChild(s);
+      })();
 
-      function initializeIdentity() {
+      function initIdentity() {
         if (!window.netlifyIdentity) {
-          updateStatus('Error: Netlify Identity not available');
+          setStatus('Error: Netlify Identity not available');
           return;
         }
 
-        const hasInviteToken = location.hash.includes('invite_token');
-        
+        // Normalize both "#invite_token=..." and "#/invite_token=..."
+        const h = location.hash || '';
+        const m = h.match(/invite_token=([^&]+)/);
+        const hasInvite = !!m;
+        if (/#\/invite_token=/.test(h) && m) {
+          // rewrite hash once to the canonical form so the widget recognizes it
+          location.replace('#invite_token=' + m[1]);
+        }
+
         window.netlifyIdentity.on('init', (user) => {
-          console.log('Identity initialized. User:', user);
-          
-          if (hasInviteToken && !user) {
-            updateStatus('Processing invite...');
-            window.netlifyIdentity.open();
+          console.log('[Identity] init user =', user);
+
+          if (hasInvite && !user) {
+            // Let user interact with the modal → hide overlay
+            setStatus('Processing invite…');
+            loading.style.display = 'none';
+            window.netlifyIdentity.open('signup'); // open on password set
             return;
           }
-          
+
           if (user) {
-            updateStatus('User authenticated, loading CMS...');
+            setStatus('User authenticated, loading CMS…');
+            // Keep overlay visible while loading CMS
             loadCMS();
           } else {
-            updateStatus('Please log in');
-            window.netlifyIdentity.open();
+            setStatus('Please log in');
+            // Let user interact with the modal → hide overlay
+            loading.style.display = 'none';
+            window.netlifyIdentity.open('login');
           }
         });
 
         window.netlifyIdentity.on('login', (user) => {
-          console.log('User logged in:', user);
-          updateStatus('Login successful, loading CMS...');
-          // Clean the URL and load CMS
-          if (location.hash) {
-            history.replaceState(null, null, location.pathname);
-          }
+          console.log('[Identity] login user =', user);
+          setStatus('Login successful, loading CMS…');
+          // Clean hash (remove invite token) before loading CMS
+          if (location.hash) history.replaceState(null, '', location.pathname);
+          // Bring overlay back while we fetch/init CMS
+          loading.style.display = '';
           loadCMS();
         });
 
-        window.netlifyIdentity.on('logout', () => {
-          location.reload();
-        });
+        window.netlifyIdentity.on('logout', () => location.reload());
 
         window.netlifyIdentity.init();
       }
 
       function loadCMS() {
-        updateStatus('Loading Decap CMS...');
-        
+        setStatus('Loading Decap CMS…');
         const cmsScript = document.createElement('script');
+        // Pinned to Decap CMS App 3.8.3
         cmsScript.src = 'https://unpkg.com/decap-cms-app@3.8.3/dist/decap-cms-app.js';
-        cmsScript.onload = function() {
-          updateStatus('CMS script loaded, initializing...');
-          setTimeout(initializeCMS, 100); // Small delay to ensure everything is ready
+        cmsScript.onload = () => {
+          setStatus('CMS script loaded, initializing…');
+          setTimeout(initCMS, 100); // tiny delay to ensure globals are ready
         };
-        cmsScript.onerror = function() {
-          updateStatus('Error: Failed to load CMS script');
-        };
+        cmsScript.onerror = () => setStatus('Error: Failed to load CMS script');
         document.head.appendChild(cmsScript);
       }
 
-      function initializeCMS() {
+      function initCMS() {
         try {
-          // Try different possible global names
           const CMS = window.DecapCMS || window.DecapCmsApp || window.CMS || window.NetlifyCMS;
-          
           if (CMS && typeof CMS.init === 'function') {
-            updateStatus('Initializing CMS interface...');
+            setStatus('Initializing CMS interface…');
             CMS.init();
-            
-            // Hide loading screen after a moment
-            setTimeout(() => {
-              loading.style.display = 'none';
-            }, 1000);
-            
+            // Hide overlay shortly after CMS takes over
+            setTimeout(() => { loading.style.display = 'none'; }, 400);
           } else {
-            console.error('Available globals:', Object.keys(window).filter(k => 
-              k.toLowerCase().includes('cms') || k.toLowerCase().includes('decap')
-            ));
-            updateStatus('Error: CMS not found after loading');
-            
-            // Fallback: try legacy Netlify CMS
-            setTimeout(loadLegacyCMS, 2000);
+            console.warn('CMS global not found. Window keys:',
+              Object.keys(window).filter(k => /cms|decap/i.test(k)));
+            setStatus('Error: CMS not found after loading');
           }
-        } catch (error) {
-          console.error('CMS initialization error:', error);
-          updateStatus('Error initializing CMS: ' + error.message);
+        } catch (err) {
+          console.error('CMS initialization error:', err);
+          setStatus('Error initializing CMS: ' + (err.message || err));
         }
       }
 
-      function loadLegacyCMS() {
-        updateStatus('Trying legacy Netlify CMS...');
-        
-        const legacyScript = document.createElement('script');
-        legacyScript.src = 'https://unpkg.com/netlify-cms@^2.10.0/dist/netlify-cms.js';
-        legacyScript.onload = function() {
-          if (window.CMS) {
-            window.CMS.init();
-            setTimeout(() => {
-              loading.style.display = 'none';
-            }, 1000);
-          }
-        };
-        document.head.appendChild(legacyScript);
-      }
-
-      // Start the process
-      checkAuthAndLoadCMS();
-
-      // Handle any JavaScript errors
-      window.addEventListener('error', function(e) {
-        console.error('JavaScript error:', e.error);
-        updateStatus('Error: ' + (e.message || 'Unknown error occurred'));
+      // Basic global error hooks (keep page informative)
+      window.addEventListener('error', (e) => {
+        setStatus('Error: ' + (e.message || 'Unknown error'));
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        setStatus('Error: ' + (e.reason && (e.reason.message || e.reason)) );
       });
     </script>
+
+    <!-- Decap will read /cockpit/config.yml via the <link rel="cms-config-url"> above -->
   </body>
 </html>
