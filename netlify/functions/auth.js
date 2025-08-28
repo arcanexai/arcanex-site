@@ -1,26 +1,33 @@
-// Netlify Functions (Node 18+, CJS)
-const { createHandlers } = require('netlify-cms-oauth-provider-node');
+// netlify/functions/auth.ts
+import type { Handler } from '@netlify/functions';
+import { createHandlers } from 'netlify-cms-oauth-provider-node';
 
-// useEnv: a csomag az env változókból olvassa a configot:
-// OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, ORIGIN, COMPLETE_URL, (opcionális ADMIN_PANEL_URL)
+// a lib a process.env-ből olvas (ORIGIN, COMPLETE_URL, OAUTH_CLIENT_ID, stb.)
 const handlers = createHandlers({}, { useEnv: true });
 
-exports.handler = async (event) => {
+export const handler: Handler = async (event) => {
   try {
-    const path = event.path || '';
-    const qs = event.queryStringParameters || {};
+    const url = new URL(event.rawUrl || `https://${process.env.URL}${event.path}${event.rawQuery ? '?' + event.rawQuery : ''}`);
 
-    if (path.endsWith('/callback')) {
-      const code = qs.code;
-      const html = await handlers.complete(code, qs);
-      return { statusCode: 200, headers: { 'Content-Type': 'text/html' }, body: html };
+    if (url.pathname.endsWith('/callback')) {
+      // GitHub visszahívás → adjuk vissza a popupnak az oldalt, ami postMessage-eli a tokent
+      const code = url.searchParams.get('code') || '';
+      const html = await handlers.complete(code, Object.fromEntries(url.searchParams));
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+        body: html,
+      };
     }
 
-    // begin flow
-    const state = qs.state; // Decap adja
-    const redirectUrl = await handlers.begin(state);
-    return { statusCode: 302, headers: { Location: redirectUrl } };
-  } catch (err) {
-    return { statusCode: 500, body: `OAuth error: ${err?.message || String(err)}` };
+    // kezdő lépés → átirányítás a GitHub auth-ra
+    const redirectUrl = await handlers.begin();
+    return {
+      statusCode: 302,
+      headers: { Location: redirectUrl, 'Cache-Control': 'no-store' },
+      body: '',
+    };
+  } catch (err: any) {
+    return { statusCode: 500, body: `OAuth error: ${err?.message || err}` };
   }
 };
