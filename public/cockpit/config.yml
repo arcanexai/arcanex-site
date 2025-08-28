@@ -1,9 +1,11 @@
 backend:
-  name: git-gateway
+  name: github
+  repo: arcanexai/arcanex-site
   branch: main
+  base_url: /.netlify/functions   # → /.netlify/functions/auth lesz hívva
 
-media_folder: "public/uploads"   # files saved in the repo
-public_folder: "/uploads"        # how files are referenced on the site
+media_folder: "public/uploads"
+public_folder: "/uploads"
 
 collections:
   - name: "pages"

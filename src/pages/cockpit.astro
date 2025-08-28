@@ -6,35 +6,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- Decap config -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
   </head>
   <body>
-    <!-- Netlify Identity (bundled, exposed) -->
-    <script type="module">
-      import netlifyIdentity from "netlify-identity-widget";
-      // expose for console debugging
-      window.netlifyIdentity = netlifyIdentity;
-
-      // force Identity API endpoint to your site (avoids auto-detect glitches)
-      const APIUrl = `${location.origin}/.netlify/identity`;
-      netlifyIdentity.init({ APIUrl });
-
-      // normalize "#/invite_token=..." → "#invite_token=..."
-      const h = location.hash || "";
-      const m = h.match(/invite_token=([^&]+)/);
-      if (/#\/invite_token=/.test(h) && m) location.replace("#invite_token=" + m[1]);
-
-      netlifyIdentity.on("init", (user) => {
-        const hasInvite = (location.hash || "").includes("invite_token");
-        if (!user && hasInvite) netlifyIdentity.open("signup");
-      });
-      netlifyIdentity.on("login", () => location.reload());
-      netlifyIdentity.on("error", (err) => console.error("[Identity error]", err));
-    </script>
-
-    <!-- Decap CMS UI (CDN, pinned) -->
     <script src="https://unpkg.com/decap-cms@3.8.3/dist/decap-cms.js"></script>
   </body>
 </html>
