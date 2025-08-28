@@ -1,11 +1,23 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
+import Welcome from "../components/Welcome.astro";
+import { Button } from "@/components/ui/button";
+import { getEntry } from "astro:content";
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// betöltjük a home bejegyzést a "pages" kollekcióból
+const home = await getEntry("pages", "home");
+
+// a render() EREDMÉNYÉBŐL kinyerjük a Content komponenst
+const { Content } = await home.render();
 ---
+<Layout title={home.data.title}>
+  <Welcome />
 
-<Layout>
-	<Welcome />
+  <section class="my-8 rounded-2xl border bg-white p-6 shadow">
+    <Content />
+  </section>
+
+  <div class="mt-6">
+    <Button client:load>Shadcn Button</Button>
+  </div>
 </Layout>
