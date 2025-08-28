@@ -4,30 +4,76 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- Tell Decap where config is -->
+    <!-- Decap config helye (public alól szervelve) -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; }
+      .box { max-width: 720px; margin: 0 auto; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+      .muted { color:#6b7280; font-size: 14px; }
+      pre { background:#f9fafb; padding:12px; border-radius:8px; overflow:auto; }
+      .ok { color: #16a34a; }
+      .err { color: #dc2626; }
+    </style>
   </head>
   <body>
-    <!-- 1) Netlify Identity widget -->
+    <div class="box">
+      <h1>Arcanex Cockpit</h1>
+      <p class="muted">If this box stays here, CMS didn’t initialize yet — see logs below.</p>
+      <div id="status"></div>
+      <pre id="log"></pre>
+      <div data-netlify-identity-menu></div>
+      <div data-netlify-identity-button style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Netlify Identity widget -->
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
     <script>
-      // if user logs in via the widget, reload Cockpit
+      const $log = document.getElementById('log');
+      const $status = document.getElementById('status');
+      const log = (...args) => { console.log(...args); $log.textContent += args.map(a => typeof a==='string'?a:JSON.stringify(a,null,2)).join(' ') + '\\n'; };
+
+      // 1) Ellenőrizzük, látja-e a böngésző a config.yml-t
+      fetch('/cockpit/config.yml', { cache: 'no-store' })
+        .then(r => { 
+          log('config.yml status:', r.status); 
+          if (r.ok) $status.innerHTML = '<p class="ok">✔ config.yml reachable</p>';
+          else $status.innerHTML = '<p class="err">✖ config.yml NOT reachable ('+r.status+')</p>';
+        })
+        .catch(e => { log('config.yml fetch error:', e); $status.innerHTML = '<p class="err">✖ config.yml fetch error</p>'; });
+
+      // 2) Identity widget események
       if (window.netlifyIdentity) {
-        window.netlifyIdentity.on('init', (user) => {
-          if (!user) {
-            window.netlifyIdentity.on('login', () => {
-              window.location.reload();
-            });
-          }
-        });
+        netlifyIdentity.on('init', user => log('identity init user=', user));
+        netlifyIdentity.on('login', user => { log('identity login user=', user); location.reload(); });
+        netlifyIdentity.on('error', err => log('identity error', err));
+        netlifyIdentity.init();
+      } else {
+        log('Identity widget not loaded');
       }
     </script>
 
-    <!-- 2) Decap CMS app -->
+    <!-- Decap CMS (local package) -->
     <script type="module">
       import CMS from "decap-cms-app";
+      // Ha ide eljutunk, az import sikerült. Indítjuk a CMS-t.
       CMS.init();
+      // Logoljuk, hogy biztosan fut-e
+      console.log('Decap CMS initialized');
+      document.getElementById('status').innerHTML += '<p class="ok">✔ Decap CMS initialized</p>';
+    </script>
+
+    <!-- Globális JS hiba naplózás a debughoz -->
+    <script>
+      window.addEventListener('error', (e) => {
+        const $log = document.getElementById('log');
+        $log.textContent += '\\nJS Error: ' + (e.message || e.error) + '\\n';
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        const $log = document.getElementById('log');
+        $log.textContent += '\\nPromise Rejection: ' + (e.reason && (e.reason.stack || e.reason.message || e.reason)) + '\\n';
+      });
     </script>
   </body>
 </html>
