@@ -6,33 +6,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- Decap config in /public -->
+    <!-- Decap reads config from /public -->
     <link href="/cockpit/config.yml" type="text/yaml" rel="cms-config-url" />
     <title>Arcanex Cockpit</title>
   </head>
   <body>
-    <!-- 1) Identity (bundled locally to avoid CORS) -->
-    <script type="module">
-      import netlifyIdentity from "netlify-identity-widget";
+    <!-- 1) Netlify Identity (bundled locally to avoid CORS) -->
+    <script type="module" src="/src/cockpit/identity.ts"></script>
 
-      // Normalize both "#invite_token=..." and "#/invite_token=..."
-      const h = location.hash || "";
-      const m = h.match(/invite_token=([^&]+)/);
-      if (/#\/invite_token=/.test(h) && m) {
-        location.replace("#invite_token=" + m[1]);
-      }
-
-      netlifyIdentity.on("init", (user) => {
-        const hasInvite = (location.hash || "").includes("invite_token");
-        if (!user && hasInvite) {
-          netlifyIdentity.open("signup"); // go straight to set password
-        }
-      });
-      netlifyIdentity.on("login", () => location.reload());
-      netlifyIdentity.init();
-    </script>
-
-    <!-- 2) Decap CMS UI (CDN, stable) -->
+    <!-- 2) Decap CMS UI (CDN, pinned & stable) -->
     <script src="https://unpkg.com/decap-cms@3.8.3/dist/decap-cms.js"></script>
   </body>
 </html>
