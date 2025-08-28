@@ -2,7 +2,8 @@ backend:
   name: github
   repo: arcanexai/arcanex-site
   branch: main
-  base_url: /.netlify/functions   # → /.netlify/functions/auth lesz hívva
+  base_url: /.netlify/functions
+  auth_endpoint: auth
 
 media_folder: "public/uploads"
 public_folder: "/uploads"
