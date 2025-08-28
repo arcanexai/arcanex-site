@@ -1,10 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { getEntry } from "astro:content";
 
-const home = await getEntry("pages", "home");
-const { Content } = await home.render();
-const { title, lead, hero } = home.data;
+// KÖZVETLEN import a markdownról (nincs getEntry)
+import HomeDoc from "../content/pages/home.md";
+
+const { title, lead, hero } = HomeDoc.frontmatter;
 ---
 <Layout title={title}>
   <section class="mx-auto max-w-4xl py-12 text-center">
@@ -28,7 +28,7 @@ const { title, lead, hero } = home.data;
     )}
 
     <div class="prose mx-auto mt-8 text-left">
-      <Content />
+      <HomeDoc.Content />
     </div>
   </section>
 </Layout>
