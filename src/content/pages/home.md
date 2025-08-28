@@ -1,6 +1,6 @@
 ---
-title: Welcome to Arcanex
-lead: Simple AI tooling for your team.
+title: welcome to arcanex
+lead: simple AI tooling for your team
 hero: /uploads/hero.png
 ---
-hello
+@
